@@ -116,7 +116,7 @@ int main()
 
     /* 
      * 256 MBs allocation.
-     * Because memory is cheap and not even Windows is stupid enough to 
+     * Because memory is cheap and the OS is not going to actually 
      * give the entire 256 MBs blocks of memory to me lol. The entire 
      * matrix allocation should go through this point.
     */ 
