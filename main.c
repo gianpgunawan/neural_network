@@ -18,13 +18,25 @@ int main()
     nn model = {0};
     size_t arc[] = {2, 2, 1};
     size_t arc_len = sizeof(arc) / sizeof(arc[0]);
-    printf("AS: \n");
     nn_init(&model, &arena, arc, arc_len);
+
+    printf("AS: \n");
     nn_mat_print(&model.as[0]);
     nn_mat_print(&model.as[1]);
     nn_mat_print(&model.as[2]);
 
     printf("Weights: \n");
+    nn_mat_print(&model.ws[1]);
+    nn_mat_print(&model.ws[2]);
+
+    nn_forward_pass(&model);
+
+    printf("AS after: \n");
+    nn_mat_print(&model.as[0]);
+    nn_mat_print(&model.as[1]);
+    nn_mat_print(&model.as[2]);
+
+    printf("Weights after: \n");
     nn_mat_print(&model.ws[1]);
     nn_mat_print(&model.ws[2]);
     return 0;

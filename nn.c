@@ -57,7 +57,11 @@ void nn_init(nn *model, nn_arena *arena, size_t *arc, size_t arc_size)
 
 void nn_forward_pass(nn *model)
 {
-
+    for (size_t i = 1; i < model->arc_size; ++i) {
+        nn_mat_mul(&model->as[i - 1], &model->ws[i], &model->zs[i]);
+        nn_mat_add(&model->zs[i], &model->bs[i], &model->zs[i]);
+        nn_mat_map(&model->zs[i], &sigmoidf, &model->as[i]);
+    }
 }
 
 void nn_train(nn *model)
@@ -67,7 +71,7 @@ void nn_train(nn *model)
 
 void nn_backprog(nn *model)
 {
-
+    
 }
 
 static inline float get_randf()
