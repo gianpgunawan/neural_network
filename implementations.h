@@ -9,4 +9,8 @@
 #include "matrix.h"
 #undef NN_MAT_IMPLEMENTATION
 
+#define NN_IMPLEMENTATION 
+#include "nn.h"
+#undef NN_IMPLEMENTATION
+
 #endif // IMPLEMENTATIONS_H
