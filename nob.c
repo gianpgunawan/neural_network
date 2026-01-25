@@ -8,7 +8,7 @@ void build_main(void)
     Nob_Cmd cmd = {0};
 
 #ifdef _WIN32
-    const *char out = ".\\main.exe";
+    const char *out = ".\\main.exe";
 #else
     const char *out = "./main";
 #endif // _WIN32
