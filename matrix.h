@@ -16,7 +16,7 @@ typedef struct {
 
 #define NN_MAT_AT(mat, row, col) ((mat)->es[(mat)->cols * (row) + (col)])
 
-int nn_mat_init(nn_mat *mat, size_t cols, size_t rows, NN_DATA_TYPE *es);
+int nn_mat_init(nn_mat *mat, size_t rows, size_t cols, NN_DATA_TYPE *es);
 void nn_mat_print(nn_mat *mat);
 int nn_mat_mul(nn_mat *m1, nn_mat *m2, nn_mat *out);
 int nn_mat_sub(nn_mat *m1, nn_mat *m2, nn_mat *out);
@@ -24,6 +24,7 @@ int nn_mat_add(nn_mat *m1, nn_mat *m2, nn_mat *out);
 int nn_mat_h(nn_mat *m1, nn_mat *m2, nn_mat *out);
 int nn_mat_map(nn_mat *m1, float (*fn)(float), nn_mat *out);
 void nn_mat_fill(nn_mat *m, float val);
+void nn_mat_fill_func(nn_mat *m, float (*func)());
 
 #ifdef NN_MAT_IMPLEMENTATION
 
@@ -32,6 +33,15 @@ void nn_mat_fill(nn_mat *m, float val)
     for (size_t i = 0; i < m->rows; ++i) {
         for (size_t j = 0; j < m->cols; ++j) {
             NN_MAT_AT(m, i, j) = val;
+        }
+    }
+}
+
+void nn_mat_fill_func(nn_mat *m, float (*func)())
+{
+    for (size_t i = 0; i < m->rows; ++i) {
+        for (size_t j = 0; j < m->cols; ++j) {
+            NN_MAT_AT(m, i, j) = func();
         }
     }
 }
