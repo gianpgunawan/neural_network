@@ -188,10 +188,11 @@ void nn_backprog(nn *model, nn_arena *arena)
             /* Calculate dc/dw */
             nn_mat dc_dw = mul(arena, &al_1_t, &dc_dz);
             dc_dw = transpose(arena, &dc_dw);
-
+            
             nn_mat wl = model->ws[arcsz - i];
+            nn_mat *bl = &model->bs[arcsz - i];
             nn_mat wl_t = transpose(arena, &wl);
-
+            nn_mat_sub(bl, &dc_dz, bl);
             nn_mat_mul_scalar(&dc_dw, lr,&dc_dw);
             
             /* TODO: Figure out a better way to update the weights */
