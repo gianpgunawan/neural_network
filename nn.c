@@ -62,10 +62,10 @@ static nn_mat sub(nn_arena *arena, nn_mat *a, nn_mat *b)
     return m;
 }
 
-static nn_mat hdmrt(nn_arena *arena, nn_mat *a, nn_mat *b)
+static nn_mat hadamard(nn_arena *arena, nn_mat *a, nn_mat *b)
 {
     nn_mat m = make_mat(arena, a->rows, a->cols, a->es);
-    nn_mat_hdmrt(a, b, &m); 
+    nn_mat_hadamard(a, b, &m); 
     return m;
 }
 
@@ -129,9 +129,12 @@ void nn_forward_pass(nn *model)
     }
 }
 
-void nn_train(nn *model)
-{
 
+static void copy_matrix(nn_mat *dst, nn_mat *src)
+{
+    dst->cols = src->cols;
+    dst->rows = src->rows;
+    memcpy(dst->es, src->es, src->cols * src->rows * sizeof(float));
 }
 
 /* Need Dataset to get the target */
@@ -143,7 +146,6 @@ void nn_backprog(nn *model, nn_arena *arena)
     // TODO: fix the implementation of this function to be dataset
     // agnostic.
     nn_mat dataset = {0};
-    size_t state = arena->count;
     const size_t ROWS = 4; 
     const size_t COLS = 4; 
     float templ[] = {
@@ -152,10 +154,19 @@ void nn_backprog(nn *model, nn_arena *arena)
         0, 1, 1, 0,
         0, 0, 0, 0,
     };
+    size_t state = arena->count;
     float *es = nn_arena_alloc(arena, ROWS * COLS * sizeof(float));
     memcpy(es, templ, ROWS * COLS * sizeof(float));
     nn_mat_init(&dataset, ROWS, COLS, es);
     size_t arcsz = model->arc_size; 
+
+    size_t max_layer = model->arc[0];
+    for (size_t i = 1; i < model->arc_size; ++i) {
+        if (model->arc[i] > max_layer) max_layer = model->arc[i];
+    }
+
+    nn_mat dc_dz = make_zero_filled_mat(arena, 1, max_layer);
+
     nn_mat *input = &model->as[0];
     for (size_t i = 0; i < ROWS; ++i) {
         NN_MAT_AT(input, 0, 0) = NN_MAT_AT(&dataset, i, 0);
@@ -175,12 +186,15 @@ void nn_backprog(nn *model, nn_arena *arena)
         nn_mat dc_da = sub(arena, &output, &target);
         nn_mat_mul_scalar(&dc_da, (2.0f/(float) arcsz), &dc_da);
 
-        nn_mat dc_dz = hdmrt(arena, &output, &output);
-        dc_dz = sub(arena, &output, &dc_dz);
-        dc_dz = hdmrt(arena, &dc_dz, &dc_da);
+        nn_mat tmp = hadamard(arena, &output, &output);
+        tmp = sub(arena, &output, &tmp);
+        tmp = hadamard(arena, &tmp, &dc_da);
+        copy_matrix(&dc_dz, &tmp);
 
-        float lr = 0.1;        
+        float lr = 0.5;
         for (size_t k = 1; k < arcsz; ++k) {
+            // Memory Arena Checkpoint
+            size_t layer_state = arena->count; 
 
             nn_mat al_1 = model->as[(arcsz - k) - 1];
             nn_mat al_1_t = transpose(arena, &al_1);
@@ -208,17 +222,17 @@ void nn_backprog(nn *model, nn_arena *arena)
             wl = transpose(arena, &new_wl_t);
             memcpy(model->ws[arcsz - k].es, wl.es, wl.cols * wl.rows * sizeof(float));
 
-            tmp = hdmrt(arena, &al_1, &al_1);
+            tmp = hadamard(arena, &al_1, &al_1);
             tmp = sub(arena, &al_1, &tmp);
-
-            dc_dz = mul(arena, &dc_dz, &new_wl_t);
-            dc_dz = hdmrt(arena, &dc_dz, &tmp);
             
+            nn_mat tmp_dc_dz = mul(arena, &dc_dz, &new_wl_t);
+            tmp_dc_dz = hadamard(arena, &tmp_dc_dz, &tmp);
+            copy_matrix(&dc_dz, &tmp_dc_dz);
+            
+            nn_arena_reset_to(arena, layer_state);
         }
-        NN_MAT_AT(&dataset, i, 3) = NN_MAT_AT(&model->as[model->arc_size - 1], 0, 0);
     }
-    float loss = loss_mse(&dataset);
-    printf("%f\n", loss);
+
     nn_arena_reset_to(arena, state);
 }
 
