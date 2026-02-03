@@ -13,31 +13,24 @@ int main()
 {
     srand(time(NULL));
     nn_arena arena = {0};
+    nn_arena prime_arena = {0};
     size_t arena_sz = 256 * 1000 * 1000; // 256 MBs
+    nn_arena_init(&prime_arena, arena_sz);
     nn_arena_init(&arena, arena_sz);
+
+
     nn model = {0};
     size_t arc[] = {2, 2, 1};
     size_t arc_len = sizeof(arc) / sizeof(arc[0]);
     nn_init(&model, &arena, arc, arc_len);
+    for (int i = 0; i < 50000; ++i) {
+        nn_backprog(&model, &arena); 
+    }
 
-    printf("AS: \n");
-    nn_mat_print(&model.as[0]);
-    nn_mat_print(&model.as[1]);
-    nn_mat_print(&model.as[2]);
-
-    printf("Weights: \n");
-    nn_mat_print(&model.ws[1]);
-    nn_mat_print(&model.ws[2]);
-
+    NN_MAT_AT(&model.as[0], 0, 0) = 1;
+    NN_MAT_AT(&model.as[0], 0, 1) = 1;
     nn_forward_pass(&model);
-
-    printf("AS after: \n");
-    nn_mat_print(&model.as[0]);
-    nn_mat_print(&model.as[1]);
-    nn_mat_print(&model.as[2]);
-
-    printf("Weights after: \n");
-    nn_mat_print(&model.ws[1]);
-    nn_mat_print(&model.ws[2]);
+    nn_mat_print(&(model.as[0]));
+    nn_mat_print(&(model.as[model.arc_size - 1]));
     return 0;
 }

@@ -21,8 +21,11 @@ void nn_mat_print(nn_mat *mat);
 int nn_mat_mul(nn_mat *m1, nn_mat *m2, nn_mat *out);
 int nn_mat_sub(nn_mat *m1, nn_mat *m2, nn_mat *out);
 int nn_mat_add(nn_mat *m1, nn_mat *m2, nn_mat *out);
-int nn_mat_h(nn_mat *m1, nn_mat *m2, nn_mat *out);
+int nn_mat_hdmrt(nn_mat *m1, nn_mat *m2, nn_mat *out);
 int nn_mat_map(nn_mat *m1, float (*fn)(float), nn_mat *out);
+void nn_mat_mul_scalar(nn_mat *m, float val, nn_mat *out);
+void nn_mat_transpose(nn_mat *m, nn_mat *out);
+
 void nn_mat_fill(nn_mat *m, float val);
 void nn_mat_fill_func(nn_mat *m, float (*func)());
 
@@ -33,6 +36,18 @@ void nn_mat_fill(nn_mat *m, float val)
     for (size_t i = 0; i < m->rows; ++i) {
         for (size_t j = 0; j < m->cols; ++j) {
             NN_MAT_AT(m, i, j) = val;
+        }
+    }
+}
+
+void nn_mat_mul_scalar(nn_mat *m, float val, nn_mat *out)
+{
+    NN_ASSERT(m != NULL, "MATRIX 1 IS NULL");
+    NN_ASSERT(out != NULL, "OUT IS NULL");
+    NN_ASSERT(m->cols == out->cols && m->rows == out->rows, "MATRICES SIZE MISMATCH");
+    for (size_t i = 0; i < m->rows; ++i) {
+        for (size_t j = 0; j < m->cols; ++j) {
+            NN_MAT_AT(out, i, j) *= val;
         }
     }
 }
@@ -98,7 +113,7 @@ int nn_mat_sub(nn_mat *m1, nn_mat *m2, nn_mat *out)
     return 0;
 }
 
-int nn_mat_h(nn_mat *m1, nn_mat *m2, nn_mat *out)
+int nn_mat_hdmrt(nn_mat *m1, nn_mat *m2, nn_mat *out)
 {
     NN_ASSERT(m1 != NULL, "MATRIX 1 IS NULL");
     NN_ASSERT(m2 != NULL, "MATRIX 2 IS NULL");
@@ -149,6 +164,19 @@ int nn_mat_init(nn_mat *mat, size_t rows, size_t cols, NN_DATA_TYPE *es)
     mat->rows = rows;
     mat->es = es;
     return mat->es != NULL;
+}
+
+void nn_mat_transpose(nn_mat *m, nn_mat *out)
+{
+    NN_ASSERT(m != NULL, "MATRIX 1 IS NULL");
+    NN_ASSERT(out != NULL, "OUT IS NULL");
+    NN_ASSERT(m->cols == out->rows && m->rows == out->cols, "MATRICES SIZE MISMATCH");
+    
+    for (size_t i = 0; i < out->rows; ++i) {
+        for (size_t j = 0; j < out->cols; ++j) {
+            NN_MAT_AT((out), i, j) = NN_MAT_AT((m), j, i);
+        }
+    }
 }
 
 #endif // NN_MAT_IMPLEMENTATION

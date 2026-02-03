@@ -23,7 +23,7 @@ typedef struct {
 void nn_init(nn *model, nn_arena *arena, size_t *arc, size_t arc_size);
 void nn_forward_pass(nn *model);
 void nn_train(nn *model);
-void nn_backprog(nn *model);
+void nn_backprog(nn *model, nn_arena *arena);
 
 #ifdef NN_IMPLEMENTATION
 #include "nn.c"
