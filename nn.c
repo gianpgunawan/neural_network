@@ -147,9 +147,9 @@ void nn_backprog(nn *model, nn_arena *arena)
     const size_t ROWS = 4; 
     const size_t COLS = 4; 
     float templ[] = {
-        1, 1, 1, 0,
-        1, 0, 0, 0,
-        0, 1, 0, 0,
+        1, 1, 0, 0,
+        1, 0, 1, 0,
+        0, 1, 1, 0,
         0, 0, 0, 0,
     };
     float *es = nn_arena_alloc(arena, ROWS * COLS * sizeof(float));
@@ -179,18 +179,18 @@ void nn_backprog(nn *model, nn_arena *arena)
         dc_dz = sub(arena, &output, &dc_dz);
         dc_dz = hdmrt(arena, &dc_dz, &dc_da);
 
-        float lr = 0.01;        
-        for (size_t i = 1; i < arcsz; ++i) {
+        float lr = 0.1;        
+        for (size_t k = 1; k < arcsz; ++k) {
 
-            nn_mat al_1 = model->as[(arcsz - i) - 1];
+            nn_mat al_1 = model->as[(arcsz - k) - 1];
             nn_mat al_1_t = transpose(arena, &al_1);
 
             /* Calculate dc/dw */
             nn_mat dc_dw = mul(arena, &al_1_t, &dc_dz);
             dc_dw = transpose(arena, &dc_dw);
             
-            nn_mat wl = model->ws[arcsz - i];
-            nn_mat *bl = &model->bs[arcsz - i];
+            nn_mat wl = model->ws[arcsz - k];
+            nn_mat *bl = &model->bs[arcsz - k];
             nn_mat wl_t = transpose(arena, &wl);
             nn_mat_sub(bl, &dc_dz, bl);
             nn_mat_mul_scalar(&dc_dw, lr,&dc_dw);
@@ -206,7 +206,7 @@ void nn_backprog(nn *model, nn_arena *arena)
              */
             nn_mat new_wl_t = sub(arena, &wl_t, &tmp);
             wl = transpose(arena, &new_wl_t);
-            memcpy(model->ws[arcsz - i].es, wl.es, wl.cols * wl.rows * sizeof(float));
+            memcpy(model->ws[arcsz - k].es, wl.es, wl.cols * wl.rows * sizeof(float));
 
             tmp = hdmrt(arena, &al_1, &al_1);
             tmp = sub(arena, &al_1, &tmp);
@@ -215,7 +215,10 @@ void nn_backprog(nn *model, nn_arena *arena)
             dc_dz = hdmrt(arena, &dc_dz, &tmp);
             
         }
+        NN_MAT_AT(&dataset, i, 3) = NN_MAT_AT(&model->as[model->arc_size - 1], 0, 0);
     }
+    float loss = loss_mse(&dataset);
+    printf("%f\n", loss);
     nn_arena_reset_to(arena, state);
 }
 

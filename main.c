@@ -20,15 +20,15 @@ int main()
 
 
     nn model = {0};
-    size_t arc[] = {2, 2, 1};
+    size_t arc[] = {2, 3, 1};
     size_t arc_len = sizeof(arc) / sizeof(arc[0]);
     nn_init(&model, &arena, arc, arc_len);
-    for (int i = 0; i < 20000; ++i) {
+    for (size_t i = 0; i < 10000; ++i) {
         nn_backprog(&model, &arena); 
     }
 
     NN_MAT_AT(&model.as[0], 0, 0) = 1;
-    NN_MAT_AT(&model.as[0], 0, 1) = 0;
+    NN_MAT_AT(&model.as[0], 0, 1) = 1;
     nn_forward_pass(&model);
     nn_mat_print(&(model.as[0]));
     nn_mat_print(&(model.as[model.arc_size - 1]));
