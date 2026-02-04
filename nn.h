@@ -14,6 +14,9 @@ typedef struct {
     nn_mat *as;
 } nn;
 
+
+// float  
+
 typedef struct {
     nn_arena arena;
     float (*activation)(float);

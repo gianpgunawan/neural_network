@@ -20,7 +20,7 @@ void build_main(void)
     nob_da_append(&source_paths, "main.c");
 
     if (nob_needs_rebuild(out, source_paths.items, source_paths.count)) {
-        nob_cmd_append(&cmd, "gcc", "-o", "main", "main.c", "-lm");
+        nob_cmd_append(&cmd, "gcc", "-o", "main", "main.c", "-lm", "-O3");
         if (!nob_cmd_run(&cmd)) exit(1);
     }
 #ifdef _WIN32

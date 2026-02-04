@@ -25,6 +25,7 @@ int nn_mat_hadamard(nn_mat *m1, nn_mat *m2, nn_mat *out);
 int nn_mat_map(nn_mat *m1, float (*fn)(float), nn_mat *out);
 void nn_mat_mul_scalar(nn_mat *m, float val, nn_mat *out);
 void nn_mat_transpose(nn_mat *m, nn_mat *out);
+void nn_mat_slice(nn_mat *m, size_t row1, size_t row2, size_t col1, size_t col2, nn_mat *out);
 
 void nn_mat_fill(nn_mat *m, float val);
 void nn_mat_fill_func(nn_mat *m, float (*func)());
@@ -175,6 +176,24 @@ void nn_mat_transpose(nn_mat *m, nn_mat *out)
     for (size_t i = 0; i < out->rows; ++i) {
         for (size_t j = 0; j < out->cols; ++j) {
             NN_MAT_AT((out), i, j) = NN_MAT_AT((m), j, i);
+        }
+    }
+}
+
+void nn_mat_slice(nn_mat *m, size_t row1, size_t row2, size_t col1, size_t col2, nn_mat *out)
+{
+    NN_ASSERT(row2 > row1, "INVALID ROW: Row 1 smaller than Row 2");
+    NN_ASSERT(col2 > col1, "INVALID COL: Col 1 smaller than Col 2");
+    NN_ASSERT(out->cols = col2 - col1, "INVALID OUT MATRIX SIZE");
+    NN_ASSERT(out->rows = row2 - row1, "INVALID OUT MATRIX SIZE");
+    NN_ASSERT(row1 >= 0 && row1 < m->rows && row2 >= 0 && row2 <= m->rows, "INVALID M MATRIX SIZE");
+    NN_ASSERT(col1 >= 0 && col1 < m->cols && col2 >= 0 && col2 <= m->cols, "INVALID M MATRIX SIZE");
+    NN_ASSERT(out->es != NULL, "INVALID ELEMENT BUFFER");
+    NN_ASSERT(m->es != NULL, "INVALID ELEMENT BUFFER");
+
+    for (size_t i = row1; i < row2 + 1; ++i) {
+        for (size_t j = col1; j < col2 + 1; ++j) {
+            NN_MAT_AT((out), (i - row1), (j - col1)) = NN_MAT_AT((m), i, j);
         }
     }
 }
