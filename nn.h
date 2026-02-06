@@ -12,8 +12,10 @@ typedef struct {
     nn_mat *bs;
     nn_mat *zs;
     nn_mat *as;
-} nn;
 
+    size_t allocated_size;
+    void *allocated_block; 
+} nn;
 
 // float  
 

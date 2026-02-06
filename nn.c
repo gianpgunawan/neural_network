@@ -87,25 +87,130 @@ static nn_mat make_zero_filled_mat(nn_arena *arena, size_t rows, size_t cols)
     return mat;
 }
 
+
+/*
+ * Initialize a neural network model specified by the struct `nn`
+ * Instead of using malloc, this function receives an arena and all
+ * the allocated memory is continuos and the first pointer of the
+ * allocated block is saved inside the `allocated_block` field with
+ * the size of allocated block saved inside the `allocated_size` field
+ *
+ * preallocated_block looks like this:
+ * [ws][bs][zs][as][arc_allocated][elements of w matrices][elements of b matrices][elements of z matrices][elements of a matrices]
+ */
 void nn_init(nn *model, nn_arena *arena, size_t *arc, size_t arc_size)
 {
-    nn_mat *ws = nn_arena_alloc(arena, (arc_size - 1) * sizeof(nn_mat));
-    nn_mat *bs = nn_arena_alloc(arena, (arc_size - 1) * sizeof(nn_mat));
-    nn_mat *os = nn_arena_alloc(arena, (arc_size - 1) * sizeof(nn_mat));
+    size_t oldsz = arena->count; 
+    nn_mat *ws = nn_arena_alloc(arena, (arc_size) * sizeof(nn_mat));
+    nn_mat *bs = nn_arena_alloc(arena, (arc_size) * sizeof(nn_mat));
     nn_mat *zs = nn_arena_alloc(arena, arc_size * sizeof(nn_mat));
     nn_mat *as = nn_arena_alloc(arena, arc_size * sizeof(nn_mat));
+
+    size_t *arc_allocated = nn_arena_alloc(arena, arc_size * sizeof(size_t));
+
+    memcpy(arc_allocated, arc, arc_size * sizeof(size_t));
+    nn_arena warena = {0}; 
+    nn_arena barena = {0}; 
+    nn_arena zarena = {0}; 
+    nn_arena aarena = {0}; 
+
     for (size_t i = 0; i < arc_size; ++i) {
         if (i == 0) {
             size_t size = arc[i];
-            // input layer 
-            as[i] = make_zero_filled_mat(arena, 1, size);
-            zs[i] = make_zero_filled_mat(arena, 1, size);
+            aarena.capacity += (size * sizeof(float));
+            zarena.capacity += (size * sizeof(float));
         } else {
             size_t size = arc[i];
-            nn_mat weight = make_randomly_filled_mat(arena, as[i - 1].cols, size);
-            nn_mat bias = make_randomly_filled_mat(arena, as[i - 1].rows, weight.cols);
-            nn_mat a = make_zero_filled_mat(arena, as[i - 1].rows, weight.cols);
-            nn_mat z = make_zero_filled_mat(arena, as[i - 1].rows, weight.cols);
+            warena.capacity += arc[i - 1] * size * sizeof(float);
+            barena.capacity += size * sizeof(float);
+            aarena.capacity += size * sizeof(float);
+            zarena.capacity += size * sizeof(float);
+        }
+    }
+   
+    nn_arena_init_from_block(&warena, nn_arena_alloc(arena, warena.capacity), warena.capacity);
+    nn_arena_init_from_block(&barena, nn_arena_alloc(arena, barena.capacity), barena.capacity);
+    nn_arena_init_from_block(&zarena, nn_arena_alloc(arena, zarena.capacity), zarena.capacity);
+    nn_arena_init_from_block(&aarena, nn_arena_alloc(arena, aarena.capacity), aarena.capacity);
+    
+
+    for (size_t i = 0; i < arc_size; ++i) {
+        if (i == 0) {
+            size_t size = arc[i];
+            as[i] = make_zero_filled_mat(&aarena, 1, size);
+            zs[i] = make_zero_filled_mat(&zarena, 1, size);
+        } else {
+            size_t size = arc[i];
+            nn_mat weight = make_randomly_filled_mat(&warena, as[i - 1].cols, size);
+            nn_mat bias = make_randomly_filled_mat(&barena, as[i - 1].rows, weight.cols);
+            nn_mat a = make_zero_filled_mat(&aarena, as[i - 1].rows, weight.cols);
+            nn_mat z = make_zero_filled_mat(&zarena, as[i - 1].rows, weight.cols);
+            ws[i] = weight;
+            bs[i] = bias;
+            zs[i] = z;
+            as[i] = a;
+        }
+    }
+
+    model->ws = ws;
+    model->as = as;
+    model->zs = zs;
+    model->bs = bs;
+    model->arc = arc_allocated;
+    model->allocated_block = ws;
+    model->allocated_size = arena->count - oldsz;
+    model->arc_size = arc_size;
+}
+
+ // [ws][bs][zs][as][arc_allocated][elements of w matrices][elements of b matrices][elements of z matrices][elements of a matrices]
+void nn_load_model(nn_arena *arena, nn *model, const char *path)
+{
+    size_t oldsz = arena->count; 
+    size_t arc_size = model->arc_size;
+    size_t *arc = model->arc;
+    nn_mat *ws = nn_arena_alloc(arena, (arc_size - 1) * sizeof(nn_mat));
+    nn_mat *bs = nn_arena_alloc(arena, (arc_size - 1) * sizeof(nn_mat));
+    nn_mat *zs = nn_arena_alloc(arena, arc_size * sizeof(nn_mat));
+    nn_mat *as = nn_arena_alloc(arena, arc_size * sizeof(nn_mat));
+
+    size_t *arc_allocated = nn_arena_alloc(arena, arc_size * sizeof(size_t));
+
+    memcpy(arc_allocated, arc, arc_size);
+    nn_arena warena = {0}; 
+    nn_arena barena = {0}; 
+    nn_arena zarena = {0}; 
+    nn_arena aarena = {0}; 
+
+    for (size_t i = 0; i < arc_size; ++i) {
+        if (i == 0) {
+            size_t size = arc[i];
+            aarena.capacity += (size * sizeof(float));
+            zarena.capacity += (size * sizeof(float));
+        } else {
+            size_t size = arc[i];
+            warena.capacity += arc[i - 1] * size * sizeof(float);
+            barena.capacity += size * sizeof(float);
+            aarena.capacity += size * sizeof(float);
+            zarena.capacity += size * sizeof(float);
+        }
+    }
+   
+    nn_arena_init_from_block(&warena, nn_arena_alloc(arena, warena.capacity), warena.capacity);
+    nn_arena_init_from_block(&barena, nn_arena_alloc(arena, barena.capacity), barena.capacity);
+    nn_arena_init_from_block(&zarena, nn_arena_alloc(arena, zarena.capacity), aarena.capacity);
+    nn_arena_init_from_block(&aarena, nn_arena_alloc(arena, aarena.capacity), zarena.capacity);
+
+    for (size_t i = 0; i < arc_size; ++i) {
+        if (i == 0) {
+            size_t size = arc[i];
+            as[i] = make_zero_filled_mat(&aarena, 1, size);
+            zs[i] = make_zero_filled_mat(&zarena, 1, size);
+        } else {
+            size_t size = arc[i];
+            nn_mat weight = make_randomly_filled_mat(&warena, as[i - 1].cols, size);
+            nn_mat bias = make_randomly_filled_mat(&barena, as[i - 1].rows, weight.cols);
+            nn_mat a = make_zero_filled_mat(&aarena, as[i - 1].rows, weight.cols);
+            nn_mat z = make_zero_filled_mat(&zarena, as[i - 1].rows, weight.cols);
             ws[i] = weight;
             bs[i] = bias;
             zs[i] = z;
@@ -116,7 +221,9 @@ void nn_init(nn *model, nn_arena *arena, size_t *arc, size_t arc_size)
     model->as = as;
     model->zs = zs;
     model->bs = bs;
-    model->arc = arc;
+    model->arc = arc_allocated;
+    model->allocated_block = ws;
+    model->allocated_size = arena->count - oldsz;
     model->arc_size = arc_size;
 }
 

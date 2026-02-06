@@ -12,6 +12,7 @@ typedef struct {
 } nn_arena;
 
 int nn_arena_init(nn_arena *arena, size_t n);
+int nn_arena_init_from_block(nn_arena *arena, void *block, size_t size);
 void nn_arena_reset(nn_arena *arena);
 void *nn_arena_alloc(nn_arena *arena, size_t n);
 void nn_arena_free(nn_arena *arena);
@@ -23,7 +24,15 @@ int nn_arena_init(nn_arena *arena, size_t n)
 {
     arena->capacity = n;
     arena->count = 0;
-    arena->data= malloc(n);
+    arena->data = malloc(n);
+    return arena->data != NULL;
+}
+
+int nn_arena_init_from_block(nn_arena *arena, void *block, size_t size)
+{
+    arena->capacity = size;
+    arena->count = 0;
+    arena->data = block;
     return arena->data != NULL;
 }
 
