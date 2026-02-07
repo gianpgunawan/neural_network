@@ -12,6 +12,7 @@ static inline float get_randf();
 static nn_mat make_mat(nn_arena *arena, size_t row, size_t col, float *es);
 static nn_mat make_out(nn_arena *arena,nn_mat *m1, nn_mat *m2);
 static float sigmoidf(float x);
+static float d_sigmoidf(float x);
 static float ReLUf(float x);
 static float loss_mse(nn_mat *dataset);
 static float zero();
@@ -66,6 +67,15 @@ static nn_mat hadamard(nn_arena *arena, nn_mat *a, nn_mat *b)
 {
     nn_mat m = make_mat(arena, a->rows, a->cols, a->es);
     nn_mat_hadamard(a, b, &m); 
+    return m;
+}
+
+static nn_mat slice(nn_arena *arena, nn_mat *a, size_t row1, size_t row2, size_t col1, size_t col2)
+{
+    size_t rows = row2 - row1;
+    size_t cols = col2 - col1;
+    nn_mat m = make_mat(arena, rows, cols, nn_arena_alloc(arena, rows * cols * sizeof(float)));
+    nn_mat_slice(a, row1, row2, col1, col2, &m);
     return m;
 }
 
@@ -244,59 +254,54 @@ static void copy_matrix(nn_mat *dst, nn_mat *src)
     memcpy(dst->es, src->es, src->cols * src->rows * sizeof(float));
 }
 
-/* Need Dataset to get the target */
-void nn_backprog(nn *model, nn_arena *arena)
+void nn_backprog(nn *model, nn_arena *arena, nn_mat *dataset, size_t target_start_col)
 {
-    // note: dataset is still hardcoded in the function.
-    // The 3rd column is for the target. The 4th column is used for
-    // storing the result after the forward pass.
-    // TODO: fix the implementation of this function to be dataset
-    // agnostic.
-    nn_mat dataset = {0};
-    const size_t ROWS = 4; 
-    const size_t COLS = 4; 
-    float templ[] = {
-        1, 1, 0, 0,
-        1, 0, 1, 0,
-        0, 1, 1, 0,
-        0, 0, 0, 0,
-    };
     size_t state = arena->count;
-    float *es = nn_arena_alloc(arena, ROWS * COLS * sizeof(float));
-    memcpy(es, templ, ROWS * COLS * sizeof(float));
-    nn_mat_init(&dataset, ROWS, COLS, es);
     size_t arcsz = model->arc_size; 
-
     size_t max_layer = model->arc[0];
-    for (size_t i = 1; i < model->arc_size; ++i) {
+    nn_mat *input = &model->as[0];
+    nn_mat *output = &model->as[arcsz - 1];
+
+    for (size_t i = 1; i < arcsz; ++i) {
         if (model->arc[i] > max_layer) max_layer = model->arc[i];
     }
-
     nn_mat dc_dz = make_zero_filled_mat(arena, 1, max_layer);
 
-    nn_mat *input = &model->as[0];
-    for (size_t i = 0; i < ROWS; ++i) {
-        NN_MAT_AT(input, 0, 0) = NN_MAT_AT(&dataset, i, 0);
-        NN_MAT_AT(input, 0, 1) = NN_MAT_AT(&dataset, i, 1);
+    for (size_t i = 0; i < dataset->rows; ++i) {
+        /* 
+         * Slice the input columns from the dataset and then put it
+         * inside the first layer (the input layer)
+         */
+        nn_mat dataset_row = slice(arena, dataset, i, i + 1, 0, target_start_col);
+        memcpy(input->es, dataset_row.es, dataset_row.cols * dataset_row.rows * sizeof(float));
+
+         /* slice the target columns from the dataset */
+        nn_mat target = slice(arena, dataset, i, i + 1, target_start_col, dataset->cols);
+
         nn_forward_pass(model);
 
-        nn_mat output = model->as[arcsz - 1];
-        nn_mat target = make_mat(arena, 1, 1, (float[]){0});
-
-        /* Add target to the 3rd column */
-        NN_MAT_AT(&target, 0, 0) = NN_MAT_AT(&dataset, i, 2);
-        
         /*
          * First step, calculate the dC/daL, and then calculate the
          * dc/dzL = aL - aL * aL
          */ 
-        nn_mat dc_da = sub(arena, &output, &target);
+
+        /* Finding da/dz 
+         * 2/n (y - x)
+         */
+        nn_mat dc_da = sub(arena,  output, &target);
         nn_mat_mul_scalar(&dc_da, (2.0f/(float) arcsz), &dc_da);
 
-        nn_mat tmp = hadamard(arena, &output, &output);
-        tmp = sub(arena, &output, &tmp);
-        tmp = hadamard(arena, &tmp, &dc_da);
-        copy_matrix(&dc_dz, &tmp);
+        /* Finding the initial da/dz 
+         * d_activation(z)
+         */
+        nn_mat zs_output = model->zs[arcsz - 1];
+        nn_mat da_dz = make_mat(arena, zs_output.rows, zs_output.cols, zs_output.es);
+
+        /* Finding the initial dc/dz */
+        nn_mat_map(&zs_output, d_sigmoidf, &da_dz);
+
+        nn_mat temp_dc_dz = hadamard(arena, &da_dz, &dc_da);
+        copy_matrix(&dc_dz, &temp_dc_dz);
 
         float lr = 0.5;
         for (size_t k = 1; k < arcsz; ++k) {
@@ -326,14 +331,15 @@ void nn_backprog(nn *model, nn_arena *arena)
              * Calculate the new dc_dz for the previous layer
              */
             nn_mat new_wl_t = sub(arena, &wl_t, &tmp);
-            wl = transpose(arena, &new_wl_t);
-            memcpy(model->ws[arcsz - k].es, wl.es, wl.cols * wl.rows * sizeof(float));
+            nn_mat new_wl = transpose(arena, &new_wl_t);
+            memcpy(model->ws[arcsz - k].es, new_wl.es, new_wl.cols * new_wl.rows * sizeof(float));
 
-            tmp = hadamard(arena, &al_1, &al_1);
-            tmp = sub(arena, &al_1, &tmp);
-            
-            nn_mat tmp_dc_dz = mul(arena, &dc_dz, &new_wl_t);
-            tmp_dc_dz = hadamard(arena, &tmp_dc_dz, &tmp);
+            nn_mat zl_1 = model->zs[(arcsz - k) - 1];
+            nn_mat dz_dzl_1 = make_mat(arena, zl_1.rows, zl_1.cols, zl_1.es);
+            nn_mat_map(&zl_1, d_sigmoidf, &dz_dzl_1);
+
+            nn_mat tmp_dc_dz = mul(arena, &dc_dz, &wl_t);
+            tmp_dc_dz = hadamard(arena, &tmp_dc_dz, &dz_dzl_1);
             copy_matrix(&dc_dz, &tmp_dc_dz);
             
             nn_arena_reset_to(arena, layer_state);
@@ -372,9 +378,20 @@ static float sigmoidf(float x)
     return 1.0 / (1.0 + exp(-x));
 }
 
+static float d_sigmoidf(float x)
+{
+    float sigval = sigmoidf(x);
+    return sigval * (1.0 - sigval);
+}
+
 static float ReLUf(float x)
 {
     return fmax(0, x);
+}
+
+static float d_ReLUf(float x)
+{
+    return (x <= 0) ? 0.0f : 1.0f;
 }
 
 float loss_mse(nn_mat *dataset)

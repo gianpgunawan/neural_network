@@ -17,18 +17,10 @@ typedef struct {
     void *allocated_block; 
 } nn;
 
-// float  
-
-typedef struct {
-    nn_arena arena;
-    float (*activation)(float);
-    float learning_rate;
-} nn_config;
-
 void nn_init(nn *model, nn_arena *arena, size_t *arc, size_t arc_size);
 void nn_forward_pass(nn *model);
 void nn_train(nn *model);
-void nn_backprog(nn *model, nn_arena *arena);
+void nn_backprog(nn *model, nn_arena *arena, nn_mat *dataset, size_t target_start_col);
 
 #ifdef NN_IMPLEMENTATION
 #include "nn.c"

@@ -124,11 +124,11 @@ int main(int argc, char **argv)
     nn model = {0};
     
     if (argc < 3) {
-        printf("Input the inputs first");
+        printf("enter the inputs first");
         return 0;
     }
 
-    bool toggle = 1;
+    bool toggle = 0;
     if (toggle) {
         read_model(&arena, ".\\model", &model);
     } else {
@@ -136,8 +136,22 @@ int main(int argc, char **argv)
         size_t arc_len = sizeof(arc) / sizeof(arc[0]);
         nn_init(&model, &arena, arc, arc_len);
 
-        for (size_t i = 0; i < 500000; ++i) {
-            nn_backprog(&model, &arena); 
+        nn_mat dataset = {0};
+        const size_t ROWS = 4;
+        const size_t COLS = 3;
+        const size_t target_start_col = 2;
+        float templ[] = {
+            1, 1, 0,
+            1, 0, 1,
+            0, 1, 1,
+            0, 0, 0,
+        };
+        float *es = nn_arena_alloc(&arena, ROWS * COLS * sizeof(float));
+        memcpy(es, templ, ROWS * COLS * sizeof(float));
+
+        nn_mat_init(&dataset, ROWS, COLS, es);
+        for (size_t i = 0; i < 100000; ++i) {
+            nn_backprog(&model, &arena, &dataset, target_start_col);
         }
     }
     char *end;
@@ -145,14 +159,15 @@ int main(int argc, char **argv)
     float x = strtof(argv[1], &end);
     float y = strtof(argv[2], &end2);
     if (end == argv[1] || end2 == argv[2]) {
-        printf("Invalid Input");
+        printf("Invalid Input\n");
         return 1;
     }
     
+    // nn_backprog(&model, &arena); 
     NN_MAT_AT(&model.as[0], 0, 0) = x;
     NN_MAT_AT(&model.as[0], 0, 1) = y;
     nn_forward_pass(&model);
-    
+        
     printf("\n");
     nn_mat_print(&(model.as[0]));
     nn_mat_print(&(model.as[2]));
@@ -171,49 +186,3 @@ int main(int argc, char **argv)
     
     return 0;
 }
-
-float func()
-{
-    static int i = 0;
-    return ++i;
-}
-
-nn_mat slice(nn_arena *arena, nn_mat *m, size_t row1, size_t row2, size_t col1, size_t col2)
-{
-    nn_mat out;
-    out.cols = col2 - col1;
-    out.rows = row2 - row1;
-    out.es = nn_arena_alloc(arena, out.cols * out.rows * sizeof(float));
-    nn_mat_slice(m, row1, row2, col1, col2, &out);
-    return out;
-}
-
-int main2()
-{
-    nn_arena arena = {0};
-    size_t arena_sz = 256 * 1000 * 1000; // 256 MBs
-    nn_arena_init(&arena, arena_sz);
-
-    nn_mat m = {0};
-    float *es = nn_arena_alloc(&arena, 12 * sizeof(float));
-    nn_mat_init(&m, 4, 3, es);
-    // nn_mat_fill_func(&m, func);
-    memcpy(es, (float[]) {
-                1, 0, 1,
-                1, 1, 1,
-                0, 1, 1,
-                0, 0, 0,
-            }, m.cols * m.rows * sizeof(float));
-
-    nn_mat b = slice(&arena, &m, 0, m.rows, m.cols - 1, m.cols);
-
-    // nn_mat_print(&m);
-    nn_mat_print(&b);
-    printf("ROW %zu\n", b.rows);
-    printf("COL %zu\n", b.cols);
-    return 0;
-}
-
-
-
-
