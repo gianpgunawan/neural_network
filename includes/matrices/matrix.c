@@ -3,7 +3,7 @@
 
 #include <stdio.h>
 
-#include "nn_assert.h"
+#include "utils/nn_assert.h"
 
 #define NN_DATA_TYPE float
 #define NN_DATA_FORMAT "%f"
@@ -30,7 +30,7 @@ void nn_mat_slice(nn_mat *m, size_t row1, size_t row2, size_t col1, size_t col2,
 void nn_mat_fill(nn_mat *m, float val);
 void nn_mat_fill_func(nn_mat *m, float (*func)());
 
-#ifdef NN_MAT_IMPLEMENTATION
+#ifdef MATRIX_IMPLEMENTATION 
 
 void nn_mat_fill(nn_mat *m, float val)
 {

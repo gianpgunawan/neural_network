@@ -2,6 +2,7 @@
 #define NN_ASSERT_H
 
 #include <assert.h>
+#include <stdlib.h>
 #include <stdio.h>
 
 #define NN_ASSERT(cond, message) do { \

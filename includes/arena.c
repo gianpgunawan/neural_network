@@ -18,7 +18,7 @@ void *nn_arena_alloc(nn_arena *arena, size_t n);
 void nn_arena_free(nn_arena *arena);
 void nn_arena_reset_to(nn_arena *arena, size_t checkpoint);
 
-#ifdef NN_ARENA_IMPLEMENTATION
+#ifdef ARENA_IMPLEMENTATION
 
 int nn_arena_init(nn_arena *arena, size_t n)
 {
@@ -63,4 +63,4 @@ void nn_arena_free(nn_arena *arena)
 }
 
 #endif // NN_ARENA_IMPLEMENTATION
-#endif // NN_ARENA_H
+#endif // ARENA_H
