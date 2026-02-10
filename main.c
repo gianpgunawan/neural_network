@@ -39,6 +39,26 @@ defer:
     return result;
 }
 
+int extract_float_from_flags(float *vals, int argc, char **argv)
+{
+    if (argc < 3) {
+        printf("enter the inputs first");
+        return 0;
+    }
+
+    char *end;
+    char *end2;
+    float x = strtof(argv[1], &end);
+    float y = strtof(argv[2], &end2);
+    if (end == argv[1] || end2 == argv[2]) {
+        return -1;
+    }
+    vals[0] = x;
+    vals[1] = y;
+
+    return 0;
+}
+
 int main(int argc, char **argv)
 {
     srand(time(NULL));
@@ -48,10 +68,8 @@ int main(int argc, char **argv)
 
     nn model = {0};
     
-    if (argc < 3) {
-        printf("enter the inputs first");
-        return 0;
-    }
+    float inputs[] = {0, 0};
+    extract_float_from_flags(inputs, argc, argv);
 
     bool toggle = 0;
     size_t arc[] = {2, 2, 1};
@@ -87,18 +105,10 @@ int main(int argc, char **argv)
     for (size_t i = 0; i < 100000; ++i) {
         nn_backprog(&model, &arena, &dataset, target_start_col, sig.actv, relu.actv);
     }
-    char *end;
-    char *end2;
-    float x = strtof(argv[1], &end);
-    float y = strtof(argv[2], &end2);
-    if (end == argv[1] || end2 == argv[2]) {
-        printf("Invalid Input\n");
-        return 1;
-    }
     
     // nn_backprog(&model, &arena); 
-    NN_MAT_AT(&model.as[0], 0, 0) = x;
-    NN_MAT_AT(&model.as[0], 0, 1) = y;
+    NN_MAT_AT(&model.as[0], 0, 0) = inputs[0];
+    NN_MAT_AT(&model.as[0], 0, 1) = inputs[1];
 
     nn_forward_pass(&model, relu.actv, sig.actv);
         
