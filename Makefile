@@ -11,14 +11,14 @@ TARGET = $(OUT_DIR)main.exe
 MAIN = main.c
 
 SRC = $(foreach dir,$(INCLUDE_SUBDIRS),$(wildcard $(dir)*.c))
+IMPL_SRC = $(foreach dir,$(INCLUDE_SUBDIRS),$(wildcard $(dir)*.inc))
+
 OBJECTS = $(subst $(INCLUDE_DIR),$(INCLUDE_OUT_DIR),$(SRC:.c=.o))
 
 .PHONY: debug all
 
 debug:
-	@echo SRC = $(SRC)
-	@echo OBJECTS = $(dir $(OBJECTS))
-	@echo $(INCLUDE_OUT_SUBDIRS)
+	@echo $(IMPL_SRC)
 
 all: $(TARGET)
 
@@ -34,7 +34,7 @@ $(INCLUDE_OUT_DIR)%.o: $(INCLUDE_DIR)%.c | $(INCLUDE_OUT_SUBDIRS)
 		-D$(shell echo $(patsubst %.c,%,$(lastword $(subst /, ,$^)))_IMPLEMENTATION | tr [:lower:] [:upper:]) \
 		-lm
 
-$(TARGET): $(MAIN) $(OBJECTS)
+$(TARGET): $(MAIN) $(OBJECTS) $(IMPL_SRC)
 	$(CC) -o $(TARGET) $(OBJECTS) $(MAIN) -I$(INCLUDE_DIR)
 
 clean:
