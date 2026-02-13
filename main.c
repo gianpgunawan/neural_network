@@ -44,18 +44,10 @@ int main(int argc, char **argv)
     NN_Activation_Sigmoid sig = {0}; nn_activation_sigmoid_init(&sig);
     NN_Activation_ReLU relu = {0}; nn_activation_relu_init(&relu);
 
-    // REGULAR MODEL
-    NN model = {0};
-    size_t arc[] = {2, 2, 1};
-    size_t arc_len = sizeof(arc) / sizeof(arc[0]);
-    nn_init(&model, &arena, arc, arc_len);
-
-    // LAYERED MODEL
-    NN_Layered new_model = {0}; nn_layered_init(&new_model);
-    nn_layered_add_layer(&arena, &new_model, 2, relu.actv);
-    nn_layered_add_layer(&arena, &new_model, 2, relu.actv);
-    nn_layered_add_layer(&arena, &new_model, 1, sig.actv);
-
+    NN new_model = {0}; nn_init(&new_model);
+    nn_add_layer(&arena, &new_model, 2, relu.actv);
+    nn_add_layer(&arena, &new_model, 2, relu.actv);
+    nn_add_layer(&arena, &new_model, 1, sig.actv);
     
     float inputs[] = {0, 0};
     extract_float_from_flags(inputs, argc, argv);
@@ -65,7 +57,7 @@ int main(int argc, char **argv)
     const size_t COLS = 3;
     const size_t target_start_col = 2;
 
-#if 1
+#if 1 
     const char *name = "AND DATASET";
     float ds[] = {
         1, 1, 1,
@@ -82,18 +74,18 @@ int main(int argc, char **argv)
         0, 0, 0,
     };
 #endif
-
+    size_t epochs = 100 * 1000;
     printf("%s\n", name);
     float *es = nn_arena_alloc(&arena, ROWS * COLS * sizeof(float));
     memcpy(es, ds, ROWS * COLS * sizeof(float));
     nn_mat_init(&dataset, ROWS, COLS, es);
-    for (size_t i = 0; i < 100000; ++i) {
-        nn_layered_backprog(&arena, &new_model, &dataset, target_start_col);
+    for (size_t i = 0; i < epochs; ++i) {
+        nn_backprog(&arena, &new_model, &dataset, target_start_col);
     }
     NN_MAT_AT(&new_model.layers.items[0].a, 0, 0) = inputs[0];
     NN_MAT_AT(&new_model.layers.items[0].a, 0, 1) = inputs[1];
 
-    nn_layered_forward_pass(&new_model);
+    nn_forward_pass(&new_model);
         
     printf("\n");
     nn_mat_print(&(new_model.layers.items[0].a));

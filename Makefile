@@ -44,6 +44,6 @@ debug:
 	@echo $(DEPENDENCIES)
 
 ctags:
-	ctags -R --langmap=C:+.inc --kinds-C=+defghlmpstuvxzLD .
+	ctags -R --kinds-C=+defghlmpstuvxzLD .
 
 
