@@ -4,7 +4,6 @@
 #include <math.h> 
 #include <stdlib.h> 
 #include <string.h> 
-#include <math.h> 
 #include <stdarg.h> 
 
 #include "activations/activation.h"
@@ -14,12 +13,6 @@
 #include "nn.c"
 #include "utils/nn_assert.h" 
 
-typedef enum {
-    NN_ACTIVATION_REGULAR,
-    NN_ACTIVATION_DERIVED,
-} NN_Activation_Mode;
-
-static float ReLUf(float x, NN_Activation_Mode mode);
 static float loss_mse(nn_mat *dataset);
 
 /*
@@ -32,7 +25,7 @@ static float loss_mse(nn_mat *dataset);
  * preallocated_block looks like this:
  * [ws][bs][zs][as][arc_allocated][elements of w matrices][elements of b matrices][elements of z matrices][elements of a matrices]
  */
-void nn_init(nn *model, nn_arena *arena, size_t *arc, size_t arc_size)
+void nn_init(NN *model, nn_arena *arena, size_t *arc, size_t arc_size)
 {
     size_t oldsz = arena->count; 
     nn_mat *ws = nn_arena_alloc(arena, (arc_size) * sizeof(nn_mat));
@@ -71,14 +64,14 @@ void nn_init(nn *model, nn_arena *arena, size_t *arc, size_t arc_size)
     for (size_t i = 0; i < arc_size; ++i) {
         if (i == 0) {
             size_t size = arc[i];
-            as[i] = mdyn_make_zero_filled_mat(&aarena, 1, size);
-            zs[i] = mdyn_make_zero_filled_mat(&zarena, 1, size);
+            as[i] = nn_mdyn_make_zero_filled_mat(&aarena, 1, size);
+            zs[i] = nn_mdyn_make_zero_filled_mat(&zarena, 1, size);
         } else {
             size_t size = arc[i];
-            nn_mat weight = mdyn_make_randomly_filled_mat(&warena, as[i - 1].cols, size);
-            nn_mat bias = mdyn_make_randomly_filled_mat(&barena, as[i - 1].rows, weight.cols);
-            nn_mat a = mdyn_make_zero_filled_mat(&aarena, as[i - 1].rows, weight.cols);
-            nn_mat z = mdyn_make_zero_filled_mat(&zarena, as[i - 1].rows, weight.cols);
+            nn_mat weight = nn_mdyn_make_randomly_filled_mat(&warena, as[i - 1].cols, size);
+            nn_mat bias = nn_mdyn_make_randomly_filled_mat(&barena, as[i - 1].rows, weight.cols);
+            nn_mat a = nn_mdyn_make_zero_filled_mat(&aarena, as[i - 1].rows, weight.cols);
+            nn_mat z = nn_mdyn_make_zero_filled_mat(&zarena, as[i - 1].rows, weight.cols);
             ws[i] = weight;
             bs[i] = bias;
             zs[i] = z;
@@ -97,7 +90,7 @@ void nn_init(nn *model, nn_arena *arena, size_t *arc, size_t arc_size)
 }
 
  // [ws][bs][zs][as][arc_allocated][elements of w matrices][elements of b matrices][elements of z matrices][elements of a matrices]
-void nn_load_model(nn_arena *arena, nn *model, const char *path)
+void nn_load_model(nn_arena *arena, NN *model, const char *path)
 {
     size_t oldsz = arena->count; 
     size_t arc_size = model->arc_size;
@@ -137,14 +130,14 @@ void nn_load_model(nn_arena *arena, nn *model, const char *path)
     for (size_t i = 0; i < arc_size; ++i) {
         if (i == 0) {
             size_t size = arc[i];
-            as[i] = mdyn_make_zero_filled_mat(&aarena, 1, size);
-            zs[i] = mdyn_make_zero_filled_mat(&zarena, 1, size);
+            as[i] = nn_mdyn_make_zero_filled_mat(&aarena, 1, size);
+            zs[i] = nn_mdyn_make_zero_filled_mat(&zarena, 1, size);
         } else {
             size_t size = arc[i];
-            nn_mat weight = mdyn_make_randomly_filled_mat(&warena, as[i - 1].cols, size);
-            nn_mat bias = mdyn_make_randomly_filled_mat(&barena, as[i - 1].rows, weight.cols);
-            nn_mat a = mdyn_make_zero_filled_mat(&aarena, as[i - 1].rows, weight.cols);
-            nn_mat z = mdyn_make_zero_filled_mat(&zarena, as[i - 1].rows, weight.cols);
+            nn_mat weight = nn_mdyn_make_randomly_filled_mat(&warena, as[i - 1].cols, size);
+            nn_mat bias = nn_mdyn_make_randomly_filled_mat(&barena, as[i - 1].rows, weight.cols);
+            nn_mat a = nn_mdyn_make_zero_filled_mat(&aarena, as[i - 1].rows, weight.cols);
+            nn_mat z = nn_mdyn_make_zero_filled_mat(&zarena, as[i - 1].rows, weight.cols);
             ws[i] = weight;
             bs[i] = bias;
             zs[i] = z;
@@ -161,7 +154,7 @@ void nn_load_model(nn_arena *arena, nn *model, const char *path)
     model->arc_size = arc_size;
 }
 
-void nn_forward_pass(nn *model, Activation *actv_hidden, Activation *actv)
+void nn_forward_pass(NN *model, NN_Activation *actv_hidden, NN_Activation *actv)
 {
     for (size_t i = 1; i < model->arc_size; ++i) {
         nn_mat_mul(&model->as[i - 1], &model->ws[i], &model->zs[i]);
@@ -181,9 +174,9 @@ static void copy_matrix(nn_mat *dst, nn_mat *src)
     memcpy(dst->es, src->es, src->cols * src->rows * sizeof(float));
 }
 
-void nn_backprog( nn *model, nn_arena *arena,
+void nn_backprog(NN *model, nn_arena *arena,
                 nn_mat *dataset, size_t target_start_col,
-                Activation *actv, Activation *actv_hidden)
+                NN_Activation *actv, NN_Activation *actv_hidden)
 {
     size_t state = arena->count;
     size_t arcsz = model->arc_size; 
@@ -194,18 +187,18 @@ void nn_backprog( nn *model, nn_arena *arena,
     for (size_t i = 1; i < arcsz; ++i) {
         if (model->arc[i] > max_layer) max_layer = model->arc[i];
     }
-    nn_mat dc_dz = mdyn_make_zero_filled_mat(arena, 1, max_layer);
+    nn_mat dc_dz = nn_mdyn_make_zero_filled_mat(arena, 1, max_layer);
 
     for (size_t i = 0; i < dataset->rows; ++i) {
         /* 
          * Slice the input columns from the dataset and then put it
          * inside the first layer (the input layer)
          */
-        nn_mat dataset_row = mdyn_slice(arena, dataset, i, i + 1, 0, target_start_col);
+        nn_mat dataset_row = nn_mdyn_slice(arena, dataset, i, i + 1, 0, target_start_col);
         memcpy(input->es, dataset_row.es, dataset_row.cols * dataset_row.rows * sizeof(float));
 
          /* slice the target columns from the dataset */
-        nn_mat target = mdyn_slice(arena, dataset, i, i + 1, target_start_col, dataset->cols);
+        nn_mat target = nn_mdyn_slice(arena, dataset, i, i + 1, target_start_col, dataset->cols);
 
         nn_forward_pass(model, actv_hidden, actv);
 
@@ -217,18 +210,18 @@ void nn_backprog( nn *model, nn_arena *arena,
         /* Finding da/dz 
          * 2/n (y - x)
          */
-        nn_mat dc_da = mdyn_sub(arena,  output, &target);
+        nn_mat dc_da = nn_mdyn_sub(arena,  output, &target);
         nn_mat_mul_scalar(&dc_da, (2.0f/(float) arcsz), &dc_da);
 
         /* Finding the initial da/dz 
          * d_activation(z)
          */
         nn_mat zs_output = model->zs[arcsz - 1];
-        nn_mat da_dz = mdyn_make_mat(arena, zs_output.rows, zs_output.cols, zs_output.es);
+        nn_mat da_dz = nn_mdyn_make_mat(arena, zs_output.rows, zs_output.cols, zs_output.es);
         nn_mat_map(&zs_output, actv->ops->derived, &da_dz);
 
         /* Finding the initial dc/dz */
-        nn_mat temp_dc_dz = mdyn_hadamard(arena, &da_dz, &dc_da);
+        nn_mat temp_dc_dz = nn_mdyn_hadamard(arena, &da_dz, &dc_da);
         copy_matrix(&dc_dz, &temp_dc_dz);
 
         float lr = 0.5;
@@ -237,26 +230,26 @@ void nn_backprog( nn *model, nn_arena *arena,
             size_t layer_state = arena->count; 
 
             nn_mat al_1 = model->as[(arcsz - k) - 1];
-            nn_mat al_1_t = mdyn_transpose(arena, &al_1);
+            nn_mat al_1_t = nn_mdyn_transpose(arena, &al_1);
 
             /* Calculate dc/dw */
-            nn_mat dc_dw = mdyn_mul(arena, &al_1_t, &dc_dz);
-            dc_dw = mdyn_transpose(arena, &dc_dw);
+            nn_mat dc_dw = nn_mdyn_mul(arena, &al_1_t, &dc_dz);
+            dc_dw = nn_mdyn_transpose(arena, &dc_dw);
             
             nn_mat wl = model->ws[arcsz - k];
             nn_mat *bl = &model->bs[arcsz - k];
-            nn_mat wl_t = mdyn_transpose(arena, &wl);
+            nn_mat wl_t = nn_mdyn_transpose(arena, &wl);
             
             /* Updating the bias */
             {
-                nn_mat temp = mdyn_make_mat(arena, dc_dz.rows, dc_dz.cols, dc_dz.es);
+                nn_mat temp = nn_mdyn_make_mat(arena, dc_dz.rows, dc_dz.cols, dc_dz.es);
                 nn_mat_mul_scalar(&temp, lr, &temp);
                 nn_mat_sub(bl, &dc_dz, bl);
             }
             
             nn_mat_mul_scalar(&dc_dw, lr,&dc_dw);
             /* TODO: Figure out a better way to update the weights */
-            nn_mat tmp = mdyn_make_randomly_filled_mat(arena, wl_t.rows, wl_t.cols);
+            nn_mat tmp = nn_mdyn_make_randomly_filled_mat(arena, wl_t.rows, wl_t.cols);
             for (size_t j = 0; j < wl_t.rows; ++j) {
                 memcpy(tmp.es + (j * dc_dw.cols * dc_dw.rows), dc_dw.es, dc_dw.rows * dc_dw.cols * sizeof(float));
             }
@@ -264,16 +257,16 @@ void nn_backprog( nn *model, nn_arena *arena,
             /*
              * Calculate the new dc_dz for the previous layer
              */
-            nn_mat new_wl_t = mdyn_sub(arena, &wl_t, &tmp);
-            nn_mat new_wl = mdyn_transpose(arena, &new_wl_t);
+            nn_mat new_wl_t = nn_mdyn_sub(arena, &wl_t, &tmp);
+            nn_mat new_wl = nn_mdyn_transpose(arena, &new_wl_t);
             memcpy(model->ws[arcsz - k].es, new_wl.es, new_wl.cols * new_wl.rows * sizeof(float));
 
             nn_mat zl_1 = model->zs[(arcsz - k) - 1];
-            nn_mat dz_dzl_1 = mdyn_make_mat(arena, zl_1.rows, zl_1.cols, zl_1.es);
+            nn_mat dz_dzl_1 = nn_mdyn_make_mat(arena, zl_1.rows, zl_1.cols, zl_1.es);
             nn_mat_map(&zl_1, actv_hidden->ops->derived, &dz_dzl_1);
 
-            nn_mat tmp_dc_dz = mdyn_mul(arena, &dc_dz, &wl_t);
-            tmp_dc_dz = mdyn_hadamard(arena, &tmp_dc_dz, &dz_dzl_1);
+            nn_mat tmp_dc_dz = nn_mdyn_mul(arena, &dc_dz, &wl_t);
+            tmp_dc_dz = nn_mdyn_hadamard(arena, &tmp_dc_dz, &dz_dzl_1);
             copy_matrix(&dc_dz, &tmp_dc_dz);
             
             nn_arena_reset_to(arena, layer_state);

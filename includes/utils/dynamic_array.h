@@ -3,7 +3,6 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <assert.h>
 
 // Initial capacity of a dynamic array
 #ifndef DA_INIT_CAP
@@ -14,6 +13,11 @@
 #include <stdlib.h>
 #define REALLOC realloc
 #endif /* REALLOC */
+
+#ifndef ASSERT 
+#include <assert.h>
+#define ASSERT assert
+#endif /* FREE */
 
 #ifndef FREE 
 #include <stdlib.h>

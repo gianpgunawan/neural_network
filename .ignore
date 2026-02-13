@@ -7,4 +7,3 @@ bin/
 
 main.*
 !main.c
-tags

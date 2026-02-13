@@ -12,13 +12,13 @@ MAIN = main.c
 
 SRC = $(foreach dir,$(INCLUDE_SUBDIRS),$(wildcard $(dir)*.c))
 IMPL_SRC = $(foreach dir,$(INCLUDE_SUBDIRS),$(wildcard $(dir)*.inc))
+HEADER_SRC = $(foreach dir,$(INCLUDE_SUBDIRS),$(wildcard $(dir)*.h))
+
+DEPENDENCIES = $(IMPL_SRC) $(HEADER_SRC)
 
 OBJECTS = $(subst $(INCLUDE_DIR),$(INCLUDE_OUT_DIR),$(SRC:.c=.o))
 
-.PHONY: debug all
-
-debug:
-	@echo $(IMPL_SRC)
+.PHONY: debug all ctags
 
 all: $(TARGET)
 
@@ -34,9 +34,16 @@ $(INCLUDE_OUT_DIR)%.o: $(INCLUDE_DIR)%.c | $(INCLUDE_OUT_SUBDIRS)
 		-D$(shell echo $(patsubst %.c,%,$(lastword $(subst /, ,$^)))_IMPLEMENTATION | tr [:lower:] [:upper:]) \
 		-lm
 
-$(TARGET): $(MAIN) $(OBJECTS) $(IMPL_SRC)
+$(TARGET): $(MAIN) $(OBJECTS) $(DEPENDENCIES)
 	$(CC) -o $(TARGET) $(OBJECTS) $(MAIN) -I$(INCLUDE_DIR)
 
 clean:
 	rm -rf ./bin/*
+
+debug:
+	@echo $(DEPENDENCIES)
+
+ctags:
+	ctags -R --langmap=C:+.inc --kinds-C=+defghlmpstuvxzLD .
+
 

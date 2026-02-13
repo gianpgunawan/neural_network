@@ -5,25 +5,25 @@
 #include "activations/activation.h"
 
 typedef struct {
-    Activation *actv;
-} Relu;
+    NN_Activation *actv;
+} NN_Activation_ReLU;
 
-void relu_init(Relu *sig);
+void nn_activation_relu_init(NN_Activation_ReLU *sig);
 static float relu_func(float x);
 static float relu_dfunc(float x);
 
 #ifdef RELU_IMPLEMENTATION
 
-static Activation_Ops actv_ops = {
+static NN_Activation_Ops actv_ops = {
     .regular = relu_func,
     .derived = relu_dfunc
 };
 
-static Activation actv = {
+static NN_Activation actv = {
     .ops = &actv_ops,
 };
 
-void relu_init(Relu *relu)
+void nn_activation_relu_init(NN_Activation_ReLU *relu)
 {
     relu->actv = &actv;
 }

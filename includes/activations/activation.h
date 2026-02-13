@@ -4,10 +4,10 @@
 typedef struct {
     float (*regular)(float);
     float (*derived)(float);
-} Activation_Ops;
+} NN_Activation_Ops;
 
 typedef struct {
-    Activation_Ops *ops;
-} Activation;
+    NN_Activation_Ops *ops;
+} NN_Activation;
 
 #endif // ACTIVATION_H

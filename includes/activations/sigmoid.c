@@ -5,25 +5,25 @@
 #include "activations/activation.h"
 
 typedef struct {
-    Activation *actv;
-} Sigmoid;
+    NN_Activation *actv;
+} NN_Activation_Sigmoid;
 
-void sigmoid_init(Sigmoid *sig);
+void nn_activation_sigmoid_init(NN_Activation_Sigmoid *sig);
 static float sigmoid_func(float x);
 static float sigmoid_dfunc(float x);
 
 #ifdef SIGMOID_IMPLEMENTATION
 
-static Activation_Ops actv_ops = {
+static NN_Activation_Ops actv_ops = {
     .regular = sigmoid_func,
     .derived = sigmoid_dfunc,
 };
 
-static Activation actv = {
+static NN_Activation actv = {
     .ops = &actv_ops,
 };
 
-void sigmoid_init(Sigmoid *sig)
+void nn_activation_sigmoid_init(NN_Activation_Sigmoid *sig)
 {
     sig->actv = &actv;
 }
