@@ -9,18 +9,18 @@ typedef struct {
     size_t capacity;
     size_t count;
     unsigned char *data;
-} nn_arena;
+} NN_Arena;
 
-int nn_arena_init(nn_arena *arena, size_t n);
-int nn_arena_init_from_block(nn_arena *arena, void *block, size_t size);
-void nn_arena_reset(nn_arena *arena);
-void *nn_arena_alloc(nn_arena *arena, size_t n);
-void nn_arena_free(nn_arena *arena);
-void nn_arena_reset_to(nn_arena *arena, size_t checkpoint);
+int nn_arena_init(NN_Arena *arena, size_t n);
+int nn_arena_init_from_block(NN_Arena *arena, void *block, size_t size);
+void nn_arena_reset(NN_Arena *arena);
+void *nn_arena_alloc(NN_Arena *arena, size_t n);
+void nn_arena_free(NN_Arena *arena);
+void nn_arena_reset_to(NN_Arena *arena, size_t checkpoint);
 
 #ifdef ARENA_IMPLEMENTATION
 
-int nn_arena_init(nn_arena *arena, size_t n)
+int nn_arena_init(NN_Arena *arena, size_t n)
 {
     arena->capacity = n;
     arena->count = 0;
@@ -28,7 +28,7 @@ int nn_arena_init(nn_arena *arena, size_t n)
     return arena->data != NULL;
 }
 
-int nn_arena_init_from_block(nn_arena *arena, void *block, size_t size)
+int nn_arena_init_from_block(NN_Arena *arena, void *block, size_t size)
 {
     arena->capacity = size;
     arena->count = 0;
@@ -36,17 +36,17 @@ int nn_arena_init_from_block(nn_arena *arena, void *block, size_t size)
     return arena->data != NULL;
 }
 
-void nn_arena_reset(nn_arena *arena)
+void nn_arena_reset(NN_Arena *arena)
 {
     arena->count = 0;
 }
 
-void nn_arena_reset_to(nn_arena *arena, size_t checkpoint)
+void nn_arena_reset_to(NN_Arena *arena, size_t checkpoint)
 {
     arena->count = checkpoint;
 }
 
-void *nn_arena_alloc(nn_arena *arena, size_t n)
+void *nn_arena_alloc(NN_Arena *arena, size_t n)
 {
     assert(arena->count + n <= arena->capacity);
     void *result = arena->data + arena->count;
@@ -54,7 +54,7 @@ void *nn_arena_alloc(nn_arena *arena, size_t n)
     return result;
 }
 
-void nn_arena_free(nn_arena *arena)
+void nn_arena_free(NN_Arena *arena)
 {
     free(arena->data);
     arena->data = NULL;

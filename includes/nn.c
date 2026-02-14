@@ -36,18 +36,53 @@ typedef struct {
 } NN;
 
 void nn_init(NN *model);
-void nn_add_layer(nn_arena *arena, NN *model, size_t nodes, NN_Activation *activation);
+void nn_add_layer(NN_Arena *arena, NN *model, size_t nodes, NN_Activation *activation);
+void nn_add_predefined_layer(NN *model, NN_Layer layer);
 void nn_forward_pass(NN *model);
-void nn_backprog(nn_arena *arena, NN *model, nn_mat *dataset, size_t target_start_col);
+void nn_backprog(NN_Arena *arena, NN *model, nn_mat *dataset, size_t target_start_col);
+void nn_dump(NN *model, const char *path);
 
 #ifdef NN_IMPLEMENTATION
-
-
 
 void nn_init(NN *model)
 {
     NN_Layers layers = {0};
     model->layers = layers;
+}
+
+void nn_dump(NN *model, const char *path)
+{
+    FILE *fp = fopen(path, "w");
+    if (fp == NULL) {
+        perror("failed to open file");
+        return;
+    };
+
+    fprintf(fp, "#include \"matrices/matrix_dyn.c\"\n");
+    fprintf(fp, "#include \"matrices/matrix.c\"\n");
+    da_foreach(NN_Layer, layer, &model->layers) {
+        size_t i = layer - model->layers.items;
+        // fprintf(fp, "activation_func %s\n", layer->activation->ops->get_name());
+        fprintf(fp, "nn_mat a%zu = nn_mdyn_make_mat(&arena, %zu, %zu, (float [])", i, layer->a.rows, layer->a.cols);
+        nn_mat_fprintf(&layer->a, fp); 
+        fprintf(fp, ";\n", i);
+        fprintf(fp, "z%zu[] = ", i);
+        fprintf(fp, "nn_mat z%zu = nn_mdyn_make_mat(&arena, %zu, %zu, (float [])", i, layer->z.rows, layer->z.cols);
+        nn_mat_fprintf(&layer->z, fp);
+        fprintf(fp, ");\n");
+        fprintf(fp, "float b%zu[] = ", i);
+        fprintf(fp, "nn_mat b%zu = nn_mdyn_make_mat(&arena, %zu, %zu, (float [])", i, layer->b.rows, layer->b.cols);
+        nn_mat_fprintf(&layer->b, fp);
+        fprintf(fp, ");\n");
+        fprintf(fp, "float w%zu[] = ", i);
+        fprintf(fp, "nn_mat w%zu = nn_mdyn_make_mat(&arena, %zu, %zu, (float [])", i, layer->w.rows, layer->w.cols);
+        nn_mat_fprintf(&layer->w, fp);
+        fprintf(fp, ");\n");
+        fprintf(fp, "NN_Layer layer%d = { .a = a%d, .w = w%d, .z = z%d, .b = b%d, .nodes = 2, .activation = relu.actv, };\n", i, i, i, i, i);
+        fprintf(fp, "nn_add_predefined_layer(&model, layer%d);\n", i);
+    }
+FILE_CLEANUP:
+    fclose(fp);
 }
 
 static void copy_matrix(nn_mat *dst, nn_mat *src)
@@ -57,7 +92,7 @@ static void copy_matrix(nn_mat *dst, nn_mat *src)
     memcpy(dst->es, src->es, src->cols * src->rows * sizeof(float));
 }
 
-void nn_add_layer(nn_arena *arena, NN *model, size_t nodes, NN_Activation *activation)
+void nn_add_layer(NN_Arena *arena, NN *model, size_t nodes, NN_Activation *activation)
 {
     nn_mat a;
     nn_mat z;
@@ -92,6 +127,17 @@ void nn_add_layer(nn_arena *arena, NN *model, size_t nodes, NN_Activation *activ
     da_append(&model->layers, new_layer);
 }
 
+void nn_add_predefined_layer(NN *model, NN_Layer layer)
+{
+    if (model->layers.count > 0) {
+        NN_Layer prev_layer = da_last(&model->layers);
+        NN_ASSERT(layer.a.cols == layer.z.cols, "INVALID SIZE: A != Z");
+        NN_ASSERT(prev_layer.w.cols == layer.w.rows, "INVALID SIZE: W(L-1) != W(L)");
+        NN_ASSERT(layer.w.cols == layer.a.cols, "INVALID SIZE: W != A");
+    }
+    da_append(&model->layers, layer);
+}
+
 void nn_forward_pass(NN *model)
 {
     for (size_t i = 1; i < model->layers.count; ++i) {
@@ -101,7 +147,7 @@ void nn_forward_pass(NN *model)
     }
 }
 
-void nn_backprog(nn_arena *arena, NN *model, nn_mat *dataset, size_t target_start_col) 
+void nn_backprog(NN_Arena *arena, NN *model, nn_mat *dataset, size_t target_start_col) 
 {
     NN_Layer *layers = model->layers.items;
     size_t state = arena->count;

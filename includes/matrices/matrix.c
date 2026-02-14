@@ -26,6 +26,7 @@ int nn_mat_map(nn_mat *m1, float (*fn)(float), nn_mat *out);
 void nn_mat_mul_scalar(nn_mat *m, float val, nn_mat *out);
 void nn_mat_transpose(nn_mat *m, nn_mat *out);
 void nn_mat_slice(nn_mat *m, size_t row1, size_t row2, size_t col1, size_t col2, nn_mat *out);
+void nn_mat_fprintf(nn_mat *mat, FILE *fp);
 
 void nn_mat_fill(nn_mat *m, float val);
 void nn_mat_fill_func(nn_mat *m, float (*func)());
@@ -145,7 +146,7 @@ int nn_mat_map(nn_mat *m1, float (*fn)(float), nn_mat *out)
 void nn_mat_print(nn_mat *mat)
 {
     NN_ASSERT(mat != NULL, "MATRIX IS NULL");
-    printf("[\n");
+    printf("{\n");
     for (size_t i = 0; i < mat->rows; ++i) {
         printf("    ");
         for (size_t j = 0; j < mat->cols; ++j) {
@@ -155,8 +156,25 @@ void nn_mat_print(nn_mat *mat)
         printf("\n");
 
     }
-    printf("]\n");
+    printf("}\n");
 }
+
+void nn_mat_fprintf(nn_mat *mat, FILE *fp)
+{
+    NN_ASSERT(mat != NULL, "MATRIX IS NULL");
+    fprintf(fp, "{\n");
+    for (size_t i = 0; i < mat->rows; ++i) {
+        fprintf(fp, "    ");
+        for (size_t j = 0; j < mat->cols; ++j) {
+            NN_DATA_TYPE val = NN_MAT_AT(mat, i, j);
+            fprintf(fp, NN_DATA_FORMAT ", ",  val);
+        }
+        fprintf(fp, "\n");
+
+    }
+    fprintf(fp, "}\n");
+}
+
 
 int nn_mat_init(nn_mat *mat, size_t rows, size_t cols, NN_DATA_TYPE *es)
 {

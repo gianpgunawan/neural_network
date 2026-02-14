@@ -27,31 +27,6 @@ void build_main(int argc, char **argv)
     if (!nob_cmd_run(&cmd)) exit(1);
 }
 
-bool walk(Nob_Walk_Entry entry)
-{
-    String_View sv_entrypath = sv_from_cstr(entry.path);
-    bool skip = false;
-    skip = skip || (sv_starts_with(sv_entrypath, sv_from_cstr(".\\.git")));
-    skip = skip || (sv_starts_with(sv_entrypath, sv_from_cstr(".\\bin")));
-    skip = skip || (sv_starts_with(sv_entrypath, sv_from_cstr(".\\tags")));
-    if (skip) return true;
-    nob_log(NOB_WARNING, entry.path);
-    return true;
-}
-
-int experiment(int argc, char **argv)
-{
-    NOB_GO_REBUILD_URSELF(argc, argv);
-
-    Nob_Walk_Dir_Opt opt = {
-        .data = (char *)"hello",
-        .post_order = false,
-    };
-
-    walk_dir(".\\includes", walk, &opt);
-    return 0;
-}
-
 int main(int argc, char **argv)
 {
     NOB_GO_REBUILD_URSELF(argc, argv);

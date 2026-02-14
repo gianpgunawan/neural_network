@@ -11,12 +11,16 @@ typedef struct {
 void nn_activation_relu_init(NN_Activation_ReLU *sig);
 static float relu_func(float x);
 static float relu_dfunc(float x);
+static const char *relu_get_name(void);
 
 #ifdef RELU_IMPLEMENTATION
 
+const char *RELU_TAG_NAME = "ReLU";
+
 static NN_Activation_Ops actv_ops = {
     .regular = relu_func,
-    .derived = relu_dfunc
+    .derived = relu_dfunc,
+    .get_name = relu_get_name,
 };
 
 static NN_Activation actv = {
@@ -31,6 +35,11 @@ void nn_activation_relu_init(NN_Activation_ReLU *relu)
 static float relu_func(float x)
 {
     return fmax(0, x);
+}
+
+static const char *relu_get_name(void)
+{
+    return RELU_TAG_NAME;
 }
 
 static float relu_dfunc(float x)

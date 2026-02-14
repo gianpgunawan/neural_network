@@ -4,6 +4,7 @@
 typedef struct {
     float (*regular)(float);
     float (*derived)(float);
+    const char *(*get_name)(void);
 } NN_Activation_Ops;
 
 typedef struct {
