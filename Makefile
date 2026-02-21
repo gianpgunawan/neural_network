@@ -1,6 +1,7 @@
 MAKEFLAGS += -r
 
 CC = gcc
+FLAGS = -Wall
 
 INCLUDE_DIR = ./includes/
 INCLUDE_SUBDIRS = $(INCLUDE_DIR) $(INCLUDE_DIR)activations/ $(INCLUDE_DIR)matrices/
@@ -32,10 +33,11 @@ $(INCLUDE_OUT_DIR)%.o: $(INCLUDE_DIR)%.c | $(INCLUDE_OUT_SUBDIRS)
 		-o $@ \
 		-c $^ \
 		-D$(shell echo $(patsubst %.c,%,$(lastword $(subst /, ,$^)))_IMPLEMENTATION | tr [:lower:] [:upper:]) \
+		$(FLAGS) \
 		-lm
 
 $(TARGET): $(MAIN) $(OBJECTS) $(DEPENDENCIES)
-	$(CC) -o $(TARGET) $(OBJECTS) $(MAIN) -I$(INCLUDE_DIR)
+	$(CC) -o $(TARGET) $(OBJECTS) $(MAIN) -I$(INCLUDE_DIR) $(FLAGS)
 
 clean:
 	rm -rf ./bin/*

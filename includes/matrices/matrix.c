@@ -22,7 +22,7 @@ int nn_mat_mul(nn_mat *m1, nn_mat *m2, nn_mat *out);
 int nn_mat_sub(nn_mat *m1, nn_mat *m2, nn_mat *out);
 int nn_mat_add(nn_mat *m1, nn_mat *m2, nn_mat *out);
 int nn_mat_hadamard(nn_mat *m1, nn_mat *m2, nn_mat *out);
-int nn_mat_map(nn_mat *m1, float (*fn)(float), nn_mat *out);
+void nn_mat_map(nn_mat *m1, float (*fn)(float), nn_mat *out);
 void nn_mat_mul_scalar(nn_mat *m, float val, nn_mat *out);
 void nn_mat_transpose(nn_mat *m, nn_mat *out);
 void nn_mat_slice(nn_mat *m, size_t row1, size_t row2, size_t col1, size_t col2, nn_mat *out);
@@ -131,7 +131,7 @@ int nn_mat_hadamard(nn_mat *m1, nn_mat *m2, nn_mat *out)
     return 0;
 }
 
-int nn_mat_map(nn_mat *m1, float (*fn)(float), nn_mat *out)
+void nn_mat_map(nn_mat *m1, float (*fn)(float), nn_mat *out)
 {
     NN_ASSERT(m1 != NULL, "MATRIX 1 IS NULL");
     NN_ASSERT(out != NULL, "OUT IS NULL");

@@ -81,7 +81,6 @@ void nn_dump(NN *model, const char *path)
         fprintf(fp, "NN_Layer layer%d = { .a = a%d, .w = w%d, .z = z%d, .b = b%d, .nodes = 2, .activation = relu.actv, };\n", i, i, i, i, i);
         fprintf(fp, "nn_add_predefined_layer(&model, layer%d);\n", i);
     }
-FILE_CLEANUP:
     fclose(fp);
 }
 
@@ -143,7 +142,7 @@ void nn_forward_pass(NN *model)
     for (size_t i = 1; i < model->layers.count; ++i) {
         nn_mat_mul(&model->layers.items[i - 1].a, &model->layers.items[i].w, &model->layers.items[i].z);
         nn_mat_add(&model->layers.items[i].z, &model->layers.items[i].b, &model->layers.items[i].z);
-        nn_mat_map(&model->layers.items[i].z, model->layers.items[i].activation->ops->regular, &model->layers.items[i].a);
+        nn_mat_map(&model->layers.items[i].z, model->layers.items[i].activation->ops->regular(model->layers.items[i].activation), &model->layers.items[i].a);
     }
 }
 
@@ -191,7 +190,7 @@ void nn_backprog(NN_Arena *arena, NN *model, nn_mat *dataset, size_t target_star
          */
         nn_mat zs_output = model->layers.items[arcsz - 1].z;
         nn_mat da_dz = nn_mdyn_make_mat(arena, zs_output.rows, zs_output.cols, zs_output.es);
-        nn_mat_map(&zs_output, last_layer.activation->ops->derived, &da_dz);
+        nn_mat_map(&zs_output, last_layer.activation->ops->derived(last_layer.activation), &da_dz);
 
         /* Finding the initial dc/dz */
         nn_mat temp_dc_dz = nn_mdyn_hadamard(arena, &da_dz, &dc_da);
@@ -236,7 +235,7 @@ void nn_backprog(NN_Arena *arena, NN *model, nn_mat *dataset, size_t target_star
 
             nn_mat zl_1 = model->layers.items[(arcsz - k) - 1].z;
             nn_mat dz_dzl_1 = nn_mdyn_make_mat(arena, zl_1.rows, zl_1.cols, zl_1.es);
-            nn_mat_map(&zl_1, curr_layer.activation->ops->derived, &dz_dzl_1);
+            nn_mat_map(&zl_1, curr_layer.activation->ops->derived(curr_layer.activation), &dz_dzl_1);
 
             nn_mat tmp_dc_dz = nn_mdyn_mul(arena, &dc_dz, &wl_t);
             tmp_dc_dz = nn_mdyn_hadamard(arena, &tmp_dc_dz, &dz_dzl_1);

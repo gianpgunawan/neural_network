@@ -20,10 +20,10 @@ nn_mat nn_mdyn_slice(NN_Arena *arena, nn_mat *a, size_t row1, size_t row2, size_
 nn_mat nn_mdyn_make_randomly_filled_mat(NN_Arena *arena, size_t rows, size_t cols);
 nn_mat nn_mdyn_make_zero_filled_mat(NN_Arena *arena, size_t rows, size_t cols);
 
+#ifdef MATRIX_DYN_IMPLEMENTATION
+
 static inline float get_randf();
 static inline float zero();
-
-#ifdef MATRIX_DYN_IMPLEMENTATION
 
 static inline float get_randf()
 {
