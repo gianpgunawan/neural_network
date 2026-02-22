@@ -5,6 +5,7 @@
 #include <string.h> 
 #include <stdarg.h> 
 #include <stddef.h>
+#include <ctype.h>
 
 #include "arena.c" 
 #include "activations/activation.h"
@@ -40,7 +41,7 @@ void nn_add_layer(NN_Arena *arena, NN *model, size_t nodes, NN_Activation *activ
 void nn_add_predefined_layer(NN *model, NN_Layer layer);
 void nn_forward_pass(NN *model);
 void nn_backprog(NN_Arena *arena, NN *model, nn_mat *dataset, size_t target_start_col);
-void nn_dump(NN *model, const char *path);
+void nn_dump(NN_Arena *arena, NN *model, const char *path, const char *name);
 
 #ifdef NN_IMPLEMENTATION
 
@@ -50,37 +51,79 @@ void nn_init(NN *model)
     model->layers = layers;
 }
 
-void nn_dump(NN *model, const char *path)
+static void string_toupper(char *out, const char *str)
+{
+    size_t len = strlen(str);
+    for (size_t i = 0; i < len; ++i) {
+        out[i] = toupper(str[i]);
+    }
+}
+
+void nn_dump(NN_Arena *arena, NN *model, const char *path, const char *name)
 {
     FILE *fp = fopen(path, "w");
     if (fp == NULL) {
         perror("failed to open file");
         return;
     };
+    size_t arena_state = arena->count;
 
+    size_t name_len = strlen(name);
+    const char *definition_name = (const char *)nn_arena_alloc(arena, (name_len + 1) * sizeof(char));
+    string_toupper((char *)definition_name, name);
+
+    fprintf(fp, "#ifndef %s_H\n", definition_name);
+    fprintf(fp, "#define %s_H\n\n", definition_name);
+    fprintf(fp, "#include \"arena.c\"\n");
     fprintf(fp, "#include \"matrices/matrix_dyn.c\"\n");
     fprintf(fp, "#include \"matrices/matrix.c\"\n");
+    fprintf(fp, "#include \"activations/sigmoid.c\"\n");
+    fprintf(fp, "#include \"activations/softmax.c\"\n");
+    fprintf(fp, "#include \"nn.c\"\n\n");
+
+    fprintf(fp, "void %s_load(NN_Arena *arena, NN *model);\n\n", name);
+    fprintf(fp, "#ifdef %s_IMPLEMENTATION\n\n", definition_name);
+
+    fprintf(fp, "static NN_Activation_Sigmoid sigmoid = {0};\n");
+    fprintf(fp, "static NN_Activation_ReLU relu = {0};\n");
+    fprintf(fp, "static NN_Activation_Softmax softmax = {0};\n");
+
+    fprintf(fp, "void %s_load(NN_Arena *arena, NN *model)\n", name);
+    fprintf(fp, "{\n");
+
+    fprintf(fp, "   nn_activation_relu_init(&relu);\n");
+    fprintf(fp, "   nn_activation_softmax_init(&softmax, model);\n");
+    fprintf(fp, "   nn_activation_sigmoid_init(&sigmoid);\n");
+
+
     da_foreach(NN_Layer, layer, &model->layers) {
         size_t i = layer - model->layers.items;
-        // fprintf(fp, "activation_func %s\n", layer->activation->ops->get_name());
-        fprintf(fp, "nn_mat a%zu = nn_mdyn_make_mat(&arena, %zu, %zu, (float [])", i, layer->a.rows, layer->a.cols);
+        fprintf(fp, "   nn_mat a%zu = nn_mdyn_make_mat(arena, %zu, %zu, (float [])", i, layer->a.rows, layer->a.cols);
         nn_mat_fprintf(&layer->a, fp); 
-        fprintf(fp, ";\n", i);
-        fprintf(fp, "z%zu[] = ", i);
-        fprintf(fp, "nn_mat z%zu = nn_mdyn_make_mat(&arena, %zu, %zu, (float [])", i, layer->z.rows, layer->z.cols);
+        fprintf(fp, ");\n");
+
+        fprintf(fp, "   nn_mat z%zu = nn_mdyn_make_mat(arena, %zu, %zu, (float [])", i, layer->z.rows, layer->z.cols);
         nn_mat_fprintf(&layer->z, fp);
-        fprintf(fp, ");\n");
-        fprintf(fp, "float b%zu[] = ", i);
-        fprintf(fp, "nn_mat b%zu = nn_mdyn_make_mat(&arena, %zu, %zu, (float [])", i, layer->b.rows, layer->b.cols);
+        fprintf(fp, "   );\n");
+
+        fprintf(fp, "   nn_mat b%zu = nn_mdyn_make_mat(arena, %zu, %zu, (float [])", i, layer->b.rows, layer->b.cols);
         nn_mat_fprintf(&layer->b, fp);
-        fprintf(fp, ");\n");
-        fprintf(fp, "float w%zu[] = ", i);
-        fprintf(fp, "nn_mat w%zu = nn_mdyn_make_mat(&arena, %zu, %zu, (float [])", i, layer->w.rows, layer->w.cols);
+        fprintf(fp, "   );\n");
+
+        fprintf(fp, "   nn_mat w%zu = nn_mdyn_make_mat(arena, %zu, %zu, (float [])", i, layer->w.rows, layer->w.cols);
         nn_mat_fprintf(&layer->w, fp);
-        fprintf(fp, ");\n");
-        fprintf(fp, "NN_Layer layer%d = { .a = a%d, .w = w%d, .z = z%d, .b = b%d, .nodes = 2, .activation = relu.actv, };\n", i, i, i, i, i);
-        fprintf(fp, "nn_add_predefined_layer(&model, layer%d);\n", i);
+        fprintf(fp, "   );\n");
+        
+        NN_Activation *actv = layer->activation; 
+        const char *actv_name = actv->ops->get_name(actv);
+
+        fprintf(fp, "   NN_Layer layer%zu = { .a = a%zu, .w = w%zu, .z = z%zu, .b = b%zu, .nodes = 2, .activation = &%s.actv, };\n", i, i, i, i, i, actv_name);
+        fprintf(fp, "   nn_add_predefined_layer(model, layer%zu);\n", i);
     }
+    fprintf(fp, "}\n");
+    fprintf(fp, "#endif // %s_IMPLEMENTATION\n", definition_name);
+    fprintf(fp, "#endif // %s_H", definition_name);
+    nn_arena_reset_to(arena, arena_state);
     fclose(fp);
 }
 

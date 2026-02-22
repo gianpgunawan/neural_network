@@ -14,6 +14,10 @@
 #include "nn.c"
 #include "utils/nn_assert.h"
 #include "utils/dynamic_array.h"
+#include "bitmap.h"
+
+#define MODEL_IMPLEMENTATION
+#include "model.h"
 
 int extract_float_from_args(float *vals, int argc, char **argv)
 {
@@ -40,7 +44,7 @@ int main(int argc, char **argv)
     srand(time(NULL));
 
     NN_Arena arena = {0};
-    size_t arena_sz = 256 * 1000 * 1000; // 256 MBs
+    size_t arena_sz = 256 * 1024 * 1024; // 256 MBs
     nn_arena_init(&arena, arena_sz);
     
     NN model = {0}; nn_init(&model);
@@ -49,19 +53,19 @@ int main(int argc, char **argv)
     NN_Activation_ReLU relu = {0}; nn_activation_relu_init(&relu);
     NN_Activation_Softmax softmax = {0}; nn_activation_softmax_init(&softmax, &model);
     
-    nn_add_layer(&arena, &model, 2, &relu.actv);
-    nn_add_layer(&arena, &model, 2, &relu.actv);
-    nn_add_layer(&arena, &model, 2, &softmax.actv);
-
+//    nn_add_layer(&arena, &model, 2, &relu.actv);
+//    nn_add_layer(&arena, &model, 2, &relu.actv);
+//    nn_add_layer(&arena, &model, 1, &sig.actv);
+    model_load(&arena, &model);
     float inputs[] = {0, 0};
     extract_float_from_args(inputs, argc, argv);
     
     nn_mat dataset = {0};
     const size_t ROWS = 4;
-    const size_t COLS = 4;
+    const size_t COLS = 3;
     const size_t target_start_col = 2;
 
-#define AND
+#define XOR 
 #if defined(AND)
     const char *name = "AND DATASET";
     float ds[] = {
@@ -96,9 +100,9 @@ int main(int argc, char **argv)
     float *es = nn_arena_alloc(&arena, ROWS * COLS * sizeof(float));
     memcpy(es, ds, ROWS * COLS * sizeof(float));
     nn_mat_init(&dataset, ROWS, COLS, es);
-    for (size_t i = 0; i < epochs; ++i) {
-        nn_backprog(&arena, &model, &dataset, target_start_col);
-    }
+    //for (size_t i = 1; i < epochs; ++i) {
+    //    nn_backprog(&arena, &model, &dataset, target_start_col);
+    //}
     NN_MAT_AT(&model.layers.items[0].a, 0, 0) = inputs[0];
     NN_MAT_AT(&model.layers.items[0].a, 0, 1) = inputs[1];
 
@@ -106,6 +110,6 @@ int main(int argc, char **argv)
     nn_mat_print(&(model.layers.items[0].a));
     nn_mat_print(&(da_last(&model.layers).a));
 
-    // nn_dump(&model, "model.c");
+    nn_dump(&arena, &model, "model.h", "model");
     return 0;
 }

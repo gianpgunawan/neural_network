@@ -25,7 +25,7 @@ static NN_Activation_Func get_dfunc(NN_Activation *a);
 
 static const char *get_name(NN_Activation *a);
 
-const char *SOFTMAX_TAG_NAME = "Softmax";
+const char *SOFTMAX_TAG_NAME = "softmax";
 static NN *softmax_model;
 
 static NN_Activation_Ops actv_ops = {
@@ -52,7 +52,6 @@ static const char *get_name(NN_Activation *a)
 static float func(float x)
 {
     NN_Layer outl = da_last(&(softmax_model->layers));
-    // nn_mat_print(&outl.z);
     size_t row = 0;
     double sumd = 0.0;
     for (size_t col = 0; col < outl.z.cols; ++col) {
@@ -64,7 +63,14 @@ static float func(float x)
 
 static float dfunc(float x)
 {
-    return x <= 0.0 ? 0.0 : 1.0;
+    NN_Layer outl = da_last(&(softmax_model->layers));
+    size_t row = 0;
+    double sumd = 0.0;
+    for (size_t col = 0; col < outl.z.cols; ++col) {
+        double v = NN_MAT_AT(&outl.z, row, col);
+        sumd += exp(v);
+    }
+    return (exp(x) * (sumd - exp(x)))/sumd;
 }
 
 static NN_Activation_Func get_func(NN_Activation *a)

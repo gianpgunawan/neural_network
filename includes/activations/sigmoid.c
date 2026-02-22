@@ -18,7 +18,7 @@ static NN_Activation_Func get_func(NN_Activation *a);
 static NN_Activation_Func get_dfunc(NN_Activation *a);
 static const char *get_name(NN_Activation *a);
 
-const char *SIGMOID_TAG_NAME = "Sigmoid";
+const char *SIGMOID_TAG_NAME = "sigmoid";
 
 static NN_Activation_Ops actv_ops = {
     .regular = get_func,

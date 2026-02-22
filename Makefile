@@ -32,12 +32,13 @@ $(INCLUDE_OUT_DIR)%.o: $(INCLUDE_DIR)%.c | $(INCLUDE_OUT_SUBDIRS)
 		-I$(INCLUDE_DIR) \
 		-o $@ \
 		-c $^ \
+		-O3 \
 		-D$(shell echo $(patsubst %.c,%,$(lastword $(subst /, ,$^)))_IMPLEMENTATION | tr [:lower:] [:upper:]) \
 		$(FLAGS) \
 		-lm
 
 $(TARGET): $(MAIN) $(OBJECTS) $(DEPENDENCIES)
-	$(CC) -o $(TARGET) $(OBJECTS) $(MAIN) -I$(INCLUDE_DIR) $(FLAGS)
+	$(CC) -o $(TARGET) $(OBJECTS) $(MAIN) -I$(INCLUDE_DIR) $(FLAGS) -O3
 
 clean:
 	rm -rf ./bin/*
